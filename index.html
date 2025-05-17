@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
+  <title>Neumorphic Scientific Calculator</title>
+  <style>
+    :root { --bg: #e0e0e0; --button-bg: #e0e0e0; --light: rgba(255,255,255,0.7); --dark: rgba(0,0,0,0.2); --accent: #6c63ff; --text: #333; }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); font-family:'Segoe UI',sans-serif; margin:0; padding:0; color:var(--text); }
+    .container { display:flex; justify-content:center; padding:10px; }
+    .calculator { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; max-width:360px; width:100%; margin:40px auto; padding:20px; background:var(--bg); border-radius:20px; box-shadow:8px 8px 16px var(--dark), -8px -8px 16px var(--light); }
+    #display { grid-column:1/-1; height:50px; padding:0 10px; font-size:1.5rem; text-align:right; background:var(--bg); border:none; border-radius:12px; box-shadow:inset 4px 4px 8px var(--dark), inset -4px -4px 8px var(--light); }
+    button { height:50px; width:100%; background:var(--button-bg); color:var(--text); border:none; border-radius:50%; font-size:1rem; cursor:pointer; box-shadow:4px 4px 8px var(--dark), -4px -4px 8px var(--light); transition:transform .1s, box-shadow .2s; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button:hover { transform:translateY(-2px); box-shadow:6px 6px 12px var(--dark), -6px -6px 12px var(--light); }
+    button:active { transform:translateY(1px); box-shadow:inset 4px 4px 8px var(--dark), inset -4px -4px 8px var(--light); }
+    .equals { grid-column:span 2; background:var(--accent); color:#fff; }
+    .clear { background:#ff6b6b; color:#fff; }
+    #historyOverlay, #sciOverlay, #formulaOverlay { display:none; position:fixed; top:10%; left:50%; transform:translateX(-50%); background:var(--bg); padding:15px; border-radius:16px; box-shadow:8px 8px 16px var(--dark), -8px -8px 16px var(--light); max-width:300px; width:90%; }
+    #historyContent { white-space:pre-wrap; font-family:monospace; max-height:200px; overflow:auto; margin-bottom:10px; }
+    #sciOverlay input { width:100%; padding:8px; margin-bottom:10px; border:none; border-radius:8px; box-shadow:inset 3px 3px 6px var(--dark), inset -3px -3px 6px var(--light); }
+    #formulaHeader { display:flex; justify-content:flex-end; }
+    
+    /* Formula Styles */
+    #formulaOverlay { 
+      max-height: 70vh;
+      overflow: hidden;
+      width: 80%;
+      max-width: 500px;
+      padding: 20px;
+    }
+    #formulaContent {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    .formula-item {
+      margin: 15px 0;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 12px;
+      box-shadow: inset 3px 3px 6px var(--dark), 
+                  inset -3px -3px 6px var(--light);
+      font-size: 0.9rem;
+    }
+
+    /* Mobile Optimizations */
+    @media (max-width: 480px) {
+      .calculator {
+        gap: 6px;
+        padding: 15px;
+        margin: 20px auto;
+        max-width: 300px;
+        grid-template-columns: repeat(4, 1fr);
+      }
+      #display { font-size: 1.3rem; height: 45px; }
+      button {
+        height: 45px;
+        font-size: 0.9rem;
+        border-radius: 12px;
+      }
+      #formulaOverlay {
+        width: 95%;
+        max-width: none;
+        top: 5%;
+        max-height: 85vh;
+        padding: 10px;
+      }
+      .formula-item {
+        font-size: 0.8rem;
+        padding: 8px;
+        margin: 10px 0;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .calculator {
+        max-width: 280px;
+        gap: 4px;
+        padding: 12px;
+      }
+      button {
+        height: 40px;
+        font-size: 0.85rem;
+      }
+      #display {
+        height: 40px;
+        font-size: 1.2rem;
+      }
+    }
+    @media (max-width:400px) { .calculator { grid-template-columns:repeat(4,1fr); } }
+  </style>
+</head>
+<body>
+  <div class="container" id="calcContainer">
+    <div class="calculator">
+      <input type="text" id="display" readonly />
+      <button class="clear" onclick="clearDisplay()">AC</button>
+      <button class="clear" onclick="backspace()">⌫</button>
+      <button class="operator" onclick="appendToDisplay('%')">%</button>
+      <button class="operator" onclick="appendToDisplay('/')">÷</button>
+      <button class="function" onclick="convertToDMS()">DMS</button>
+      <button onclick="appendToDisplay('7')">7</button>
+      <button onclick="appendToDisplay('8')">8</button>
+      <button onclick="appendToDisplay('9')">9</button>
+      <button class="operator" onclick="appendToDisplay('*')">×</button>
+      <button class="function" onclick="appendToDisplay('(')">(</button>
+      <button onclick="appendToDisplay('4')">4</button>
+      <button onclick="appendToDisplay('5')">5</button>
+      <button onclick="appendToDisplay('6')">6</button>
+      <button class="operator" onclick="appendToDisplay('-')">−</button>
+      <button class="function" onclick="appendToDisplay(')')">)</button>
+      <button onclick="appendToDisplay('1')">1</button>
+      <button onclick="appendToDisplay('2')">2</button>
+      <button onclick="appendToDisplay('3')">3</button>
+      <button class="operator" onclick="appendToDisplay('+')">+</button>
+      <button class="equals" onclick="calculate()">=</button>
+      <button onclick="appendToDisplay('0')" style="grid-column:span 2;">0</button>
+      <button onclick="appendToDisplay('.')">.</button>
+      <button class="function" id="angleModeBtn" onclick="toggleAngleMode()">RAD</button>
+      <button class="function" onclick="appendToDisplay('^')">^</button>
+      <button class="function" onclick="appendToDisplay('e')">e</button>
+      <button class="function" onclick="appendToDisplay('!')">!</button>
+      <button class="function" onclick="appendToDisplay('π')">π</button>
+      <button class="function" onclick="appendToDisplay('√(')">√</button>
+      <button style="visibility:hidden;"></button>
+      <button class="function" onclick="appendToDisplay('asin(')">sin⁻¹</button>
+      <button class="function" onclick="appendToDisplay('acos(')">cos⁻¹</button>
+      <button class="function" onclick="appendToDisplay('atan(')">tan⁻¹</button>
+      <button class="function" onclick="appendToDisplay('sin(')">sin</button>
+      <button class="function" onclick="appendToDisplay('cos(')">cos</button>
+      <button class="function" onclick="appendToDisplay('tan(')">tan</button>
+      <button class="function" onclick="appendToDisplay('log(')">log</button>
+      <button class="function" onclick="appendToDisplay('ln(')">ln</button>
+      <button class="white-btn" onclick="insertAns()">Ans</button>
+      <button class="white-btn" onclick="memoryAdd()">M+</button>
+      <button class="white-btn" onclick="memorySubtract()">M-</button>
+      <button class="white-btn" onclick="memoryRecall()">MR</button>
+      <button class="white-btn" onclick="memoryClear()">MC</button>
+      <button class="white-btn" onclick="showHistory()" style="grid-column:span 2;">History</button>
+      <button class="white-btn" onclick="convertToFraction()">a b/c</button>
+      <button class="white-btn" onclick="convertToSci()">x10^x</button>
+      <button class="white-btn" onclick="insertRandom()">Ran#</button>
+      <button class="white-btn" onclick="toggleSign()">(−)</button>
+      <button class="white-btn" onclick="insertTripleQuotes()">'''</button>
+      <button class="white-btn" onclick="toggleENG()">ENG</button>
+      <button class="white-btn" onclick="statPush()">STAT</button>
+      <button class="white-btn" onclick="statInsert()">INS</button>
+      <button class="function" onclick="showFormula()">Formula</button>
+    </div>
+  </div>
+
+  <div id="historyOverlay"><h2>History</h2><div id="historyContent"></div><button onclick="hideHistory()">Back</button></div>
+  <div id="sciOverlay"><h2>10^x Exponent</h2><input id="sciInput" placeholder="Enter exponent"/><button onclick="calculateSci()">Calc</button><button onclick="hideSci()">Cancel</button></div>
+  
+  <div id="formulaOverlay">
+    <div id="formulaHeader"><button onclick="hideFormula()">Back</button></div>
+    <div id="formulaContent"></div>
+  </div>
+
+  <script>
+    let angleMode='RAD', lastAnswer=0, calcHistory=[], memory=0, stats=[];
+    
+    const formulas = [
+      "1. Quadratic Formula: x = [-b ± √(b²-4ac)]/(2a)",
+      "2. Arithmetic Sequence: aₙ = a₁ + (n-1)d",
+      "3. Geometric Sequence: aₙ = a₁·r^(n-1)",
+      "4. Binomial Theorem: (a+b)ⁿ = Σₖ₌₀ⁿ C(n,k)aⁿ⁻ᵏbᵏ",
+      "5. Logarithm Change: log_b a = ln a / ln b",
+      "6. Exponential Growth: A = A₀e^(kt)",
+      "7. Matrix Determinant (2x2): |A| = ad - bc",
+      "8. Complex Conjugate: (a+bi)(a-bi) = a² + b²",
+      "9. Sum of Squares: a² + b² = (a+bi)(a-bi)",
+      "10. Cubic Equation: ax³ + bx² + cx + d = 0",
+      "11. Arithmetic Mean: (x₁ + x₂ + ... + xₙ)/n",
+      "12. Geometric Mean: ⁿ√(x₁·x₂·...·xₙ)",
+      "13. Harmonic Mean: n / (Σ1/xᵢ)",
+      "14. Permutations: P(n,k) = n!/(n-k)!",
+      "15. Combinations: C(n,k) = n!/(k!(n-k)!)",
+      "16. Circle Area: A = πr²",
+      "17. Sphere Volume: V = ⁴/₃πr³",
+      "18. Heron's Formula: A = √[s(s-a)(s-b)(s-c)]",
+      "19. Pythagorean Theorem: a² + b² = c²",
+      "20. Cone Volume: V = ⅓πr²h",
+      "21. Cylinder SA: 2πr² + 2πrh",
+      "22. Ellipse Area: A = πab",
+      "23. Torus Volume: V = 2π²Rr²",
+      "24. Polygon Angles: S = (n-2)×180°",
+      "25. Arc Length: L = rθ (θ in radians)",
+      "26. Sector Area: A = ½r²θ",
+      "27. Parabola Focus: y = (1/(4p))x²",
+      "28. Hyperbola: x²/a² - y²/b² = 1",
+      "29. Euler Line: Ortho/Centroid/Circumcenter",
+      "30. Dihedral Angle: cosθ = (n₁·n₂)/(|n₁||n₂|)",
+      "31. Law of Cosines: c² = a² + b² - 2ab cosθ",
+      "32. Law of Sines: a/sin A = b/sin B = c/sin C",
+      "33. Double Angle: sin 2θ = 2 sinθ cosθ",
+      "34. Euler's Formula: e^(iθ) = cosθ + i sinθ",
+      "35. De Moivre: (cosθ + i sinθ)ⁿ = cos(nθ) + i sin(nθ)",
+      "36. Tangent Identity: tan(A+B) = (tanA+tanB)/(1-tanA tanB)",
+      "37. Half-Angle: sin²θ = (1 - cos2θ)/2",
+      "38. Spherical Law: cos a = cos b cos c + sin b sin c cos A",
+      "39. Haversine: d = 2r arcsin(√[sin²(Δφ/2) + cosφ₁ cosφ₂ sin²(Δλ/2)])",
+      "40. CORDIC: Rotation-based algorithm for trig functions",
+      "41. Versine: versinθ = 1 - cosθ",
+      "42. Exsecant: exsecθ = secθ - 1",
+      "43. Gudermannian: gd(x) = 2 arctan(eˣ) - π/2",
+      "44. Cisθ: cisθ = cosθ + i sinθ",
+      "45. Pythagorean Identity: sin²θ + cos²θ = 1",
+      "46. Derivative: d/dx xⁿ = nxⁿ⁻¹",
+      "47. Integration: ∫xⁿ dx = xⁿ⁺¹/(n+1) + C",
+      "48. Product Rule: (fg)' = f'g + fg'",
+      "49. Chain Rule: (f∘g)' = (f'∘g)·g'",
+      "50. L'Hôpital: lim f/g = lim f'/g'",
+      "51. Taylor Series: f(x) = Σ f⁽ⁿ⁾(a)(x-a)ⁿ/n!",
+      "52. Maclaurin: Taylor series at a=0",
+      "53. Divergence Thm: ∫∫∫(∇·F)dV = ∫∫F·dS",
+      "54. Stokes' Thm: ∫∫(∇×F)·dS = ∮F·dr",
+      "55. Green's Thm: ∮(Ldx + Mdy) = ∫∫(∂M/∂x - ∂L/∂y)dA",
+      "56. Integration by Parts: ∫u dv = uv - ∫v du",
+      "57. Jacobian: J = ∂(x,y)/∂(u,v)",
+      "58. Gradient: ∇f = (∂f/∂x, ∂f/∂y, ∂f/∂z)",
+      "59. Curl: ∇×F = (∂F_z/∂y - ∂F_y/∂z, ...)",
+      "60. Laplacian: ∇²f = ∇·∇f",
+      "61. Newton II: F = ma",
+      "62. Kinetic Energy: KE = ½mv²",
+      "63. Gravitation: F = G(m₁m₂)/r²",
+      "64. Ohm's Law: V = IR",
+      "65. Einstein: E = mc²",
+      "66. Schrödinger: Ĥψ = Eψ",
+      "67. Maxwell Eqs: ∇·E=ρ/ε₀, ∇×E=-∂B/∂t, ...",
+      "68. Navier-Stokes: ρ(∂v/∂t + v·∇v) = -∇p + μ∇²v + f",
+      "69. Bernoulli: P + ½ρv² + ρgh = const",
+      "70. Lorentz Force: F = q(E + v×B)",
+      "71. Doppler Effect: f' = f(v ± v₀)/(v ∓ vₛ)",
+      "72. Black-Scholes: ∂V/∂t + ½σ²S²∂²V/∂S² + rS∂V/∂S - rV = 0",
+      "73. Heisenberg: Δx Δp ≥ ħ/2",
+      "74. Hubble's Law: v = H₀D",
+      "75. Stefan-Boltzmann: P = σAT⁴",
+      "76. Planck: E = hf",
+      "77. Coulomb: F = k(q₁q₂)/r²",
+      "78. Snell's Law: n₁ sinθ₁ = n₂ sinθ₂",
+      "79. Ideal Gas: PV = nRT",
+      "80. Faraday: ε = -dΦ/dt",
+      "81. Ampère: ∮B·dl = μ₀I_enc",
+      "82. Gauss: Φ_E = Q_enc/ε₀",
+      "83. Biot-Savart: B = (μ₀/4π)∫(Idl × r̂)/r²",
+      "84. Compton: Δλ = h(1 - cosθ)/m_ec",
+      "85. de Broglie: λ = h/p",
+      "86. Photoelectric: KE = hf - φ",
+      "87. Fermi Energy: E_F = (h²/2m)(3π²n)^(2/3)",
+      "88. Wien's Law: λ_max = b/T",
+      "89. Hooke's Law: F = -kx",
+      "90. Reynolds: Re = ρvL/μ",
+      "91. Dirac Eq: (iγ^μ∂_μ - m)ψ = 0",
+      "92. Einstein Field: G_μν = 8πG T_μν",
+      "93. Klein-Gordon: (□ + m²)φ = 0",
+      "94. Yang-Mills: D_μ F^μν = j^ν",
+      "95. Schrödinger-Poisson: iħ∂ψ/∂t = (-ħ²∇²/2m + V)ψ",
+      "96. Navier-Cauchy: μ∇²u + (λ+μ)∇(∇·u) + f = ρü",
+      "97. Boltzmann: S = k lnΩ",
+      "98. Hamilton: H = T + V",
+      "99. Lagrange: d/dt(∂L/∂q̇) - ∂L/∂q = 0",
+      "100. Noether: Symmetry ⇨ Conservation Law",
+      "101. Shannon Entropy: H = -Σ p_i log p_i",
+      "102. Bayes: P(A|B) = P(B|A)P(A)/P(B)",
+      "103. Poisson: P(k) = (λ^k e^{-λ})/k!",
+      "104. Fourier: F(ω) = ∫_{-∞}^∞ f(t)e^{-iωt} dt",
+      "105. Z-transform: X(z) = Σ x[n]z^{-n}"
+    ];
+
+    // Functions
+    function showFormula(){
+      document.getElementById('calcContainer').style.display='none';
+      const contentDiv = document.getElementById('formulaContent');
+      contentDiv.innerHTML = formulas.map((f,i) => 
+        `<div class="formula-item">${f}</div>`
+      ).join('');
+      document.getElementById('formulaOverlay').style.display='block';
+      contentDiv.scrollTop = 0;
+    }
+
+    function hideFormula(){
+      document.getElementById('formulaOverlay').style.display='none';
+      document.getElementById('calcContainer').style.display='flex';
+    }
+
+    function toggleAngleMode(){
+      angleMode=angleMode==='RAD'?'DEG':angleMode==='DEG'?'GRAD':'RAD';
+      document.getElementById('angleModeBtn').textContent=angleMode;
+    }
+
+    function appendToDisplay(v){
+      let d=document.getElementById('display');
+      d.value+=v;
+      d.focus();
+      d.setSelectionRange(d.value.length,d.value.length);
+    }
+
+    function clearDisplay(){
+      document.getElementById('display').value='';
+    }
+
+    function backspace(){
+      let d=document.getElementById('display');
+      if(d.value) d.value=d.value.slice(0,-1);
+    }
+
+    function calculate(){
+      try{
+        let inp=document.getElementById('display').value;
+        let expr=inp.replace(/π/g,'Math.PI')
+                   .replace(/e/g,'Math.E')
+                   .replace(/√/g,'Math.sqrt')
+                   .replace(/\^/g,'**')
+                   .replace(/\blog\(/g,'Math.log10(')
+                   .replace(/\bln\(/g,'Math.log(')
+                   .replace(/\basin\(/g,'Math.asin(')
+                   .replace(/\bacos\(/g,'Math.acos(')
+                   .replace(/\batan\(/g,'Math.atan(')
+                   .replace(/\bsin\(/g,'Math.sin(')
+                   .replace(/\bcos\(/g,'Math.cos(')
+                   .replace(/\btan\(/g,'Math.tan(')
+                   .replace(/%/g,'/100');
+
+        if(angleMode==='DEG'){
+          expr=expr.replace(/Math\.sin\(([^)]+)\)/g,'Math.sin(($1*Math.PI/180))')
+                  .replace(/Math\.cos\(([^)]+)\)/g,'Math.cos(($1*Math.PI/180))')
+                  .replace(/Math\.tan\(([^)]+)\)/g,'Math.tan(($1*Math.PI/180))')
+                  .replace(/Math\.asin\(([^)]+)\)/g,'(Math.asin($1)*180/Math.PI)')
+                  .replace(/Math\.acos\(([^)]+)\)/g,'(Math.acos($1)*180/Math.PI)')
+                  .replace(/Math\.atan\(([^)]+)\)/g,'(Math.atan($1)*180/Math.PI)');
+        }
+        else if(angleMode==='GRAD'){
+          expr=expr.replace(/Math\.sin\(([^)]+)\)/g,'Math.sin(($1*Math.PI/200))')
+                  .replace(/Math\.cos\(([^)]+)\)/g,'Math.cos(($1*Math.PI/200))')
+                  .replace(/Math\.tan\(([^)]+)\)/g,'Math.tan(($1*Math.PI/200))')
+                  .replace(/Math\.asin\(([^)]+)\)/g,'(Math.asin($1)*200/Math.PI)')
+                  .replace(/Math\.acos\(([^)]+)\)/g,'(Math.acos($1)*200/Math.PI)')
+                  .replace(/Math\.atan\(([^)]+)\)/g,'(Math.atan($1)*200/Math.PI)');
+        }
+
+        expr=expr.replace(/(\d+)!/g,(_,n)=>{
+          let r=1;
+          for(let i=2;i<=n;i++) r*=i;
+          return r;
+        });
+
+        let res=eval(expr);
+        document.getElementById('display').value=res;
+        lastAnswer=res;
+        calcHistory.push(inp+' = '+res);
+      }catch{
+        document.getElementById('display').value='Error';
+      }
+    }
+
+    function toggleSign(){
+      let d=document.getElementById('display'),v=parseFloat(d.value);
+      if(!isNaN(v)) d.value=(-v);
+    }    
+
+    function insertRandom(){
+      appendToDisplay(Math.random().toString());
+    }
+
+    function insertAns(){
+      appendToDisplay(lastAnswer.toString());
+    }
+
+    function toggleENG(){
+      let d=document.getElementById('display'),v=parseFloat(d.value);
+      if(!isNaN(v)) d.value=v.toExponential(3);
+    }
+
+    function memoryAdd(){
+      let v=parseFloat(document.getElementById('display').value);
+      if(!isNaN(v)) memory+=v;
+    }
+
+    function memorySubtract(){
+      let v=parseFloat(document.getElementById('display').value);
+      if(!isNaN(v)) memory-=v;
+    }
+
+    function memoryRecall(){
+      document.getElementById('display').value=memory;
+    }
+
+    function memoryClear(){
+      memory=0;
+    }
+
+    function statPush(){
+      try{
+        let v=eval(document.getElementById('display').value);
+        if(!isNaN(v)){
+          stats.push(v);
+          alert('Pushed: '+v);
+        }else document.getElementById('display').value='Error';
+      }catch{document.getElementById('display').value='Error';}
+    }
+
+    function statInsert(){
+      if(stats.length) appendToDisplay(stats[stats.length-1].toString());
+    }
+
+    function convertToDMS(){
+      const d=document.getElementById('display'),v=parseFloat(d.value);
+      if(isNaN(v)){
+        d.value='Error';
+        return;
+      }
+      let deg=Math.floor(v);
+      let mf=(v-deg)*60;
+      let min=Math.floor(mf);
+      let sec=((mf-min)*60).toFixed(2);
+      d.value=`${deg}° ${min}' ${sec}"`;
+    }
+
+    function convertToFraction(){
+      const d=document.getElementById('display'),v=parseFloat(d.value);
+      if(isNaN(v)){
+        d.value='Error';
+        return;
+      }
+      let tol=1e-6;
+      let h1=1,h2=0,k1=0,k2=1,b=v;
+      do{
+        let a=Math.floor(b);
+        let aux=h1;
+        h1=a*h1+h2;
+        h2=aux;
+        aux=k1;
+        k1=a*k1+k2;
+        k2=aux;
+        b=1/(b-a);
+      }while(Math.abs(v-h1/k1)>v*tol);
+      d.value=`${h1}/${k1}`;
+    }
+
+    function convertToSci(){
+      document.getElementById('calcContainer').style.display='none';
+      document.getElementById('sciOverlay').style.display='block';
+    }
+
+    function calculateSci(){
+      let e=parseFloat(document.getElementById('sciInput').value);
+      if(isNaN(e)){
+        alert('Invalid exponent');
+        return;
+      }
+      let b=parseFloat(document.getElementById('display').value)||0;
+      let r=b*Math.pow(10,e);
+      document.getElementById('display').value=r;
+      lastAnswer=r;
+      calcHistory.push(b+'×10^'+e+'='+r);
+      hideSci();
+    }
+
+    function hideSci(){
+      document.getElementById('sciOverlay').style.display='none';
+      document.getElementById('calcContainer').style.display='flex';
+    }
+
+    function showHistory(){
+      document.getElementById('historyContent').textContent=calcHistory.join('\n')||'No history';
+      document.getElementById('calcContainer').style.display='none';
+      document.getElementById('historyOverlay').style.display='block';
+    }
+
+    function hideHistory(){
+      document.getElementById('historyOverlay').style.display='none';
+      document.getElementById('calcContainer').style.display='flex';
+    }
+
+    function insertTripleQuotes(){
+      appendToDisplay("'''");
+    }
+  </script>
+</body>
+</html>
